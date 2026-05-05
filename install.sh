@@ -157,15 +157,11 @@ request_ssl_cert() {
     fi
 
     ln -sf "$config_file" "$config_link"
-
     rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 
-    systemctl stop nginx 2>/dev/null || true
-    sleep 1
+    nginx -t && systemctl reload nginx
 
-    certbot certonly --standalone -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
-
-    systemctl start nginx
+    certbot certonly --webroot -w "$DOC_ROOT" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
 
     log_info "Certificate obtained successfully"
 }
