@@ -12,15 +12,18 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "[INFO] $1"
+    echo -e "[INFO] $1" >> /var/log/install-ssl.log
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "[WARN] $1"
+    echo -e "[WARN] $1" >> /var/log/install-ssl.log
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "[ERROR] $1"
+    echo -e "[ERROR] $1" >> /var/log/install-ssl.log
 }
 
 show_usage() {
@@ -291,14 +294,31 @@ main() {
 
     log_info "Starting SSL certificate setup..."
 
+    log_info "Step 1: Checking root..."
     check_root
+    
+    log_info "Step 2: Parsing domains..."
     parse_domains "$DOMAINS_PARAM"
+    
+    log_info "Step 3: Installing requirements (nginx, certbot)..."
     install_requirements
+    
+    log_info "Step 4: Checking ports 80/443..."
     check_ports
+    
+    log_info "Step 5: Creating document roots..."
     create_doc_roots
+    
+    log_info "Step 6: Requesting SSL certificate..."
     request_ssl_cert
+    
+    log_info "Step 7: Generating nginx config..."
     generate_nginx_config
+    
+    log_info "Step 8: Reloading nginx..."
     reload_nginx
+    
+    log_info "Step 9: Setting up cron renewal..."
     setup_cron_renewal
 
     log_info "========================================="
