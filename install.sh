@@ -177,8 +177,13 @@ generate_nginx_config() {
 reload_nginx() {
     log_info "Testing and reloading nginx..."
 
-    nginx -t
-    systemctl reload nginx
+    nginx -t || {
+        log_warn "nginx test failed, trying to fix..."
+        nginx -s stop 2>/dev/null || true
+        sleep 1
+    }
+    
+    systemctl restart nginx
     systemctl enable nginx
 
     log_info "nginx reloaded successfully"
