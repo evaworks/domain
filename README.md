@@ -5,7 +5,7 @@
 ## 一键安装
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/evaworks/domain/main/install.sh | sudo bash -s -- \
+curl -sSL https://raw.githubusercontent.com/evaworks/domain/master/install.sh | sudo bash -s -- \
   --domains "example.com:/var/www/html"
 ```
 
@@ -32,21 +32,21 @@ domain1:/path/to/docroot,domain2:/path/to/docroot
 ### 普通网站
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/evaworks/domain/main/install.sh | sudo bash -s -- \
+curl -sSL https://raw.githubusercontent.com/evaworks/domain/master/install.sh | sudo bash -s -- \
   --domains "example.com:/var/www/html"
 ```
 
 ### 多域名
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/evaworks/domain/main/install.sh | sudo bash -s -- \
+curl -sSL https://raw.githubusercontent.com/evaworks/domain/master/install.sh | sudo bash -s -- \
   --domains "example.com:/var/www/html,sub.example.com:/var/www/sub"
 ```
 
 ### 下载服务器
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/evaworks/domain/main/install.sh | sudo bash -s -- \
+curl -sSL https://raw.githubusercontent.com/evaworks/domain/master/install.sh | sudo bash -s -- \
   --domains "download.example.com:/var/www/download" \
   --download
 ```
@@ -54,7 +54,7 @@ curl -sSL https://raw.githubusercontent.com/evaworks/domain/main/install.sh | su
 ### 下载服务器 + gzip
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/evaworks/domain/main/install.sh | sudo bash -s -- \
+curl -sSL https://raw.githubusercontent.com/evaworks/domain/master/install.sh | sudo bash -s -- \
   --domains "download.example.com:/var/www/download" \
   --download --gzip
 ```
