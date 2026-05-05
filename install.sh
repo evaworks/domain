@@ -1,8 +1,46 @@
 #!/bin/bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATE_FILE="$SCRIPT_DIR/nginx.template.conf"
 RENEWAL_SCRIPT="$SCRIPT_DIR/ssl-renewal.sh"
+
+NGINX_TEMPLATE='server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+
+    server_name {{DOMAIN}};
+
+    ssl_certificate /etc/letsencrypt/live/{{DOMAIN}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{DOMAIN}}/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:SSL:50m;
+    ssl_session_tickets off;
+
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+
+    {{GZIP_CONFIG}}
+
+    root {{DOC_ROOT}};
+    index index.html index.htm;
+
+    {{DOWNLOAD_CONFIG}}
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{DOMAIN}};
+
+    return 301 https://$host$request_uri;
+}'
 
 log_info() {
     echo "[INFO] $1"
@@ -106,7 +144,7 @@ generate_nginx_config() {
     local config_file="/etc/nginx/sites-available/${DOMAIN}.conf"
     local config_link="/etc/nginx/sites-enabled/${DOMAIN}.conf"
 
-    cp "$TEMPLATE_FILE" "$config_file"
+    echo "$NGINX_TEMPLATE" > "$config_file"
     sed -i "s|{{DOMAIN}}|$DOMAIN|g" "$config_file"
 
     if [[ "$DOWNLOAD_MODE" == "on" ]]; then
