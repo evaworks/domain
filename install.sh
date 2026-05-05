@@ -170,9 +170,6 @@ generate_nginx_config() {
     log_info "Nginx config already created in cert request step"
 }
 
-    log_info "Nginx config created: $config_file"
-}
-
 reload_nginx() {
     log_info "Testing and reloading nginx..."
 
