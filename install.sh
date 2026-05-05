@@ -24,22 +24,18 @@ log_error() {
 }
 
 show_usage() {
-    cat << EOF
-Usage: $0 --domains <domain:doc-root[,domain:doc-root>] [options]
+    cat << 'EOF'
+Usage: install.sh --domains <domain:doc-root[,domain:doc-root>] [options]
 
 Options:
     --domains    Domain and document root pairs (required)
                  Format: domain1:/path/to/docroot,domain2:/path/to/docroot
-    --download   Enable download server mode (large files, directory listing)
-                 Optional: --download[=size] (default: 100G)
-    --gzip       Enable gzip compression (default: on for download mode)
+    --download  Enable download server mode (default: 100G)
+    --gzip     Enable gzip compression (default: on for download mode)
 
 Examples:
-    $0 --domains "example.com:/var/www/html"
-    $0 --domains "example.com:/var/www/html,sub.example.com:/var/www/sub"
-    $0 --domains "example.com:/var/www/download" --download
-    $0 --domains "example.com:/var/www/download" --download=50G
-    $0 --domains "example.com:/var/www/download" --download --gzip
+    install.sh --domains "example.com:/var/www/html"
+    install.sh --domains "example.com:/var/www/download" --download
 EOF
     exit 1
 }
@@ -85,16 +81,14 @@ install_requirements() {
 
     if ! command -v nginx &> /dev/null; then
         log_info "Installing nginx..."
-        apt update
-        apt install -y nginx
+        apt update && apt install -y nginx
     else
         log_info "nginx already installed"
     fi
 
     if ! command -v certbot &> /dev/null; then
         log_info "Installing certbot..."
-        apt update
-        apt install -y certbot python3-certbot-nginx
+        apt update && apt install -y certbot python3-certbot-nginx
     else
         log_info "certbot already installed"
     fi
@@ -103,14 +97,18 @@ install_requirements() {
 check_ports() {
     log_info "Checking ports 80 and 443..."
 
-    if netstat -tuln 2>/dev/null | grep -q ':80 '; then
-        log_warn "Port 80 is in use, stopping potential conflicting services..."
-        systemctl stop nginx 2>/dev/null || true
-        systemctl stop apache2 2>/dev/null || true
-    fi
-
-    if netstat -tuln 2>/dev/null | grep -q ':443 '; then
-        log_warn "Port 443 is in use"
+    if command -v netstat &> /dev/null; then
+        if netstat -tuln 2>/dev/null | grep -q ':80 '; then
+            log_warn "Port 80 in use, stopping services..."
+            systemctl stop nginx 2>/dev/null || true
+            systemctl stop apache2 2>/dev/null || true
+        fi
+    elif command -v ss &> /dev/null; then
+        if ss -tuln 2>/dev/null | grep -q ':80 '; then
+            log_warn "Port 80 in use, stopping services..."
+            systemctl stop nginx 2>/dev/null || true
+            systemctl stop apache2 2>/dev/null || true
+        fi
     fi
 }
 
@@ -140,9 +138,40 @@ request_ssl_cert() {
 
     log_info "Requesting certificate for: $domains_arg"
 
-    certbot certonly --nginx -d "$domains_arg" --non-interactive --agree-tos
+    certbot certonly --nginx -d "$domains_arg" --non-interactive --agree-tos --register-unsafely-without-email
 
     log_info "Certificate obtained successfully"
+}
+
+generate_server_block() {
+    local domain="$1"
+    local doc_root="$2"
+    
+    local block="    server {
+        listen 80;
+        listen [::]:80;
+        server_name $domain;
+
+        root $doc_root;
+        index index.html index.htm;
+"
+    
+    if [[ "$DOWNLOAD_MODE" == "on" ]]; then
+        block="${block}        client_max_body_size $DOWNLOAD_SIZE;
+        autoindex on;
+        autoindex_exact_size on;
+        autoindex_localtime on;
+        add_header Cache-Control \"no-store, no-cache, must-revalidate\";
+"
+    fi
+    
+    block="${block}
+        location / {
+            try_files \$uri \$uri/ =404;
+        }
+    }"
+    
+    echo "$block"
 }
 
 generate_nginx_config() {
@@ -156,46 +185,11 @@ generate_nginx_config() {
     sed -i "s|{{PRIMARY_DOMAIN}}|$PRIMARY_DOMAIN|g" "$config_file"
 
     local server_blocks=""
-
     for i in "${!DOMAINS[@]}"; do
-        domain="${DOMAINS[$i]}"
-        doc_root="${DOC_ROOTS[$i]}"
-
-        if [[ "$DOWNLOAD_MODE" == "on" ]]; then
-            server_blocks="${server_blocks}
-    server {
-        listen 80;
-        listen [::]:80;
-        server_name $domain;
-
-        root $doc_root;
-        index index.html index.htm;
-
-        client_max_body_size $DOWNLOAD_SIZE;
-        autoindex on;
-        autoindex_exact_size on;
-        autoindex_localtime on;
-        add_header Cache-Control \"no-store, no-cache, must-revalidate\";
-
-        location / {
-            try_files \$uri \$uri/ =404;
-        }
-    }"
-        else
-            server_blocks="${server_blocks}
-    server {
-        listen 80;
-        listen [::]:80;
-        server_name $domain;
-
-        root $doc_root;
-        index index.html index.htm;
-
-        location / {
-            try_files \$uri \$uri/ =404;
-        }
-    }"
-        fi
+        local block
+        block=$(generate_server_block "${DOMAINS[$i]}" "${DOC_ROOTS[$i]}")
+        server_blocks="${server_blocks}
+${block}"
     done
 
     sed -i "s|{{SERVER_BLOCKS}}|$server_blocks|g" "$config_file"
@@ -212,14 +206,11 @@ generate_nginx_config() {
     if [[ -n "$GZIP_ENABLED" ]]; then
         if [[ "$GZIP_ENABLED" == "on" ]]; then
             sed -i 's|{{GZIP_CONFIG}}|    gzip on;\n    gzip_types *;|g' "$config_file"
-            sed -i 's|{{GZIP_DISABLED}}|# gzip disabled|g' "$config_file"
         else
-            sed -i 's|{{GZIP_CONFIG}}|# gzip disabled|g' "$config_file"
-            sed -i 's|{{GZIP_DISABLED}}|# gzip disabled|g' "$config_file"
+            sed -i 's|{{GZIP_CONFIG}}|    # gzip disabled|g' "$config_file"
         fi
     else
         sed -i 's|{{GZIP_CONFIG}}|    gzip on;\n    gzip_types *;|g' "$config_file"
-        sed -i 's|{{GZIP_DISABLED}}|# gzip disabled|g' "$config_file"
     fi
 
     if [[ ! -L "$config_link" ]]; then
