@@ -133,14 +133,6 @@ create_doc_root() {
 request_ssl_cert() {
     log_info "Requesting SSL certificate for: $DOMAIN"
 
-    certbot certonly --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
-
-    log_info "Certificate obtained successfully"
-}
-
-generate_nginx_config() {
-    log_info "Generating nginx configuration..."
-
     local config_file="/etc/nginx/sites-available/${DOMAIN}.conf"
     local config_link="/etc/nginx/sites-enabled/${DOMAIN}.conf"
 
@@ -168,7 +160,18 @@ generate_nginx_config() {
 
     rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 
-    log_info "Nginx config created: $config_file"
+    systemctl stop nginx 2>/dev/null || true
+    sleep 1
+
+    certbot certonly --standalone -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
+
+    systemctl start nginx
+
+    log_info "Certificate obtained successfully"
+}
+
+generate_nginx_config() {
+    log_info "Nginx config already created in cert request step"
 }
 
     log_info "Nginx config created: $config_file"
