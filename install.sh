@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -x
+set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/nginx.template.conf"
@@ -258,27 +258,31 @@ main() {
     GZIP_ENABLED=""
 
     while [[ $# -gt 0 ]]; do
-        case $1 in
+        case "$1" in
             --domains)
                 DOMAINS_PARAM="$2"
                 shift 2
                 ;;
             --download)
                 DOWNLOAD_MODE="on"
-                if [[ -n "$2" && "$2" != --* ]]; then
+                if [[ "${2:-}" != "" && "${2:-}" != --* ]]; then
                     DOWNLOAD_SIZE="$2"
                     shift
                 fi
+                shift
                 ;;
             --download=*)
                 DOWNLOAD_MODE="on"
                 DOWNLOAD_SIZE="${1#*=}"
+                shift
                 ;;
             --gzip)
                 GZIP_ENABLED="on"
+                shift
                 ;;
             --nogzip)
                 GZIP_ENABLED="off"
+                shift
                 ;;
             *)
                 log_error "Unknown option: $1"
