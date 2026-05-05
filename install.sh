@@ -144,6 +144,9 @@ generate_nginx_config() {
     local config_file="/etc/nginx/sites-available/${DOMAIN}.conf"
     local config_link="/etc/nginx/sites-enabled/${DOMAIN}.conf"
 
+    mkdir -p /etc/nginx/sites-available
+    mkdir -p /etc/nginx/sites-enabled
+
     echo "$NGINX_TEMPLATE" > "$config_file"
     sed -i "s|{{DOMAIN}}|$DOMAIN|g" "$config_file"
 
@@ -161,11 +164,12 @@ generate_nginx_config() {
         sed -i 's|{{GZIP_CONFIG}}| |g' "$config_file"
     fi
 
-    if [[ ! -L "$config_link" ]]; then
-        ln -sf "$config_file" "$config_link"
-    fi
+    ln -sf "$config_file" "$config_link"
 
     rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+
+    log_info "Nginx config created: $config_file"
+}
 
     log_info "Nginx config created: $config_file"
 }
