@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/nginx.template.conf"
 RENEWAL_SCRIPT="$SCRIPT_DIR/ssl-renewal.sh"
