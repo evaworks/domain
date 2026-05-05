@@ -6,26 +6,18 @@
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/evaworks/domain/master/install.sh | sudo bash -s -- \
-  --domains "example.com:/var/www/html"
+  --domain example.com \
+  --doc-root /var/www/html
 ```
 
 ## 参数说明
 
-| 参数 | 说明 | 示例 |
+| 参数 | 说明 | 必填 |
 |------|------|------|
-| `--domains` | 域名和文档根目录 | `domain:/var/www/html` |
-| `--download` | 下载服务器模式（默认100G） | `--download` |
-| `--download=size` | 自定义最大文件大小 | `--download=500G` |
-| `--gzip` | 启用 gzip 压缩 | `--gzip` |
-| `--nogzip` | 禁用 gzip | `--nogzip` |
-
-### domains 格式
-
-```
-domain1:/path/to/docroot,domain2:/path/to/docroot
-```
-
-多个域名用逗号分隔，每个域名独立配置 doc-root。
+| `--domain` | 域名 | ✅ |
+| `--doc-root` | 文档根目录 | ✅ |
+| `--download` | 下载服务器模式（100G、目录列表） | - |
+| `--gzip` | 启用 gzip 压缩 | - |
 
 ## 使用示例
 
@@ -33,21 +25,16 @@ domain1:/path/to/docroot,domain2:/path/to/docroot
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/evaworks/domain/master/install.sh | sudo bash -s -- \
-  --domains "example.com:/var/www/html"
-```
-
-### 多域名
-
-```bash
-curl -sSL https://raw.githubusercontent.com/evaworks/domain/master/install.sh | sudo bash -s -- \
-  --domains "example.com:/var/www/html,sub.example.com:/var/www/sub"
+  --domain example.com \
+  --doc-root /var/www/html
 ```
 
 ### 下载服务器
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/evaworks/domain/master/install.sh | sudo bash -s -- \
-  --domains "download.example.com:/var/www/download" \
+  --domain download.example.com \
+  --doc-root /var/www/download \
   --download
 ```
 
@@ -55,8 +42,10 @@ curl -sSL https://raw.githubusercontent.com/evaworks/domain/master/install.sh | 
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/evaworks/domain/master/install.sh | sudo bash -s -- \
-  --domains "download.example.com:/var/www/download" \
-  --download --gzip
+  --domain download.example.com \
+  --doc-root /var/www/download \
+  --download \
+  --gzip
 ```
 
 ## 本地使用
@@ -65,30 +54,20 @@ curl -sSL https://raw.githubusercontent.com/evaworks/domain/master/install.sh | 
 git clone https://github.com/evaworks/domain.git
 cd domain
 chmod +x install.sh ssl-renewal.sh
-sudo ./install.sh --domains "example.com:/var/www/html"
+sudo ./install.sh --domain example.com --doc-root /var/www/html
 ```
 
 ## 功能特性
 
-- 自动申请 Let's Encrypt SSL 证书（SAN 证书）
+- 自动申请 Let's Encrypt SSL 证书
 - 自动配置 Nginx HTTPS
 - 自动配置 HTTP → HTTPS 重定向
 - 自动续期（证书剩余 30 天时）
-- 支持多域名
-- 下载服务器优化（100G+ 大文件、目录列表）
+- 下载服务器模式（100G+ 大文件、自动目录列表）
 - 每周自动检测续期
+- 不影响其他 nginx 项目
 
-## 文件说明
-
-```
-.
-├── install.sh             # 主入口
-├── nginx.template.conf   # Nginx 配置模板
-├── ssl-renewal.sh       # 自动续期脚本
-└── README.md           # 说明文档
-```
-
-## 证书路径
+## 证书和配置路径
 
 - 证书：`/etc/letsencrypt/live/{domain}/`
 - Nginx 配置：`/etc/nginx/sites-available/{domain}.conf`
