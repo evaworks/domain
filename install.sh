@@ -176,16 +176,18 @@ generate_nginx_config() {
 reload_nginx() {
     log_info "Testing and reloading nginx..."
 
-    nginx -t || {
-        log_warn "nginx test failed, trying to fix..."
-        nginx -s stop 2>/dev/null || true
-        sleep 1
+    nginx -t 2>/dev/null || {
+        log_warn "nginx test failed, skipping..."
     }
-    
-    systemctl restart nginx
-    systemctl enable nginx
 
-    log_info "nginx reloaded successfully"
+    pkill -HUP nginx 2>/dev/null || {
+        nginx 2>/dev/null || {
+            log_warn "nginx not running, starting..."
+            nginx
+        }
+    }
+
+    log_info "nginx reloaded"
 }
 
 setup_cron_renewal() {
