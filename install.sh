@@ -106,15 +106,11 @@ check_ports() {
 
     if which netstat >/dev/null 2>&1; then
         if netstat -tuln 2>/dev/null | grep -q ':80 '; then
-            log_warn "Port 80 in use, stopping services..."
-            systemctl stop nginx 2>/dev/null || true
-            systemctl stop apache2 2>/dev/null || true
+            log_warn "Port 80 in use..."
         fi
     elif which ss >/dev/null 2>&1; then
         if ss -tuln 2>/dev/null | grep -q ':80 '; then
-            log_warn "Port 80 in use, stopping services..."
-            systemctl stop nginx 2>/dev/null || true
-            systemctl stop apache2 2>/dev/null || true
+            log_warn "Port 80 in use..."
         fi
     fi
 }
@@ -159,7 +155,10 @@ request_ssl_cert() {
     ln -sf "$config_file" "$config_link"
     rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 
-    nginx -t && systemctl reload nginx
+    nginx -t 2>/dev/null && pkill -HUP nginx 2>/dev/null || {
+        log_warn "nginx reload failed, trying to start..."
+        nginx 2>/dev/null || true
+    }
 
     certbot certonly --webroot -w "$DOC_ROOT" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
 
