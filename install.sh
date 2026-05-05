@@ -172,18 +172,15 @@ generate_nginx_config() {
 reload_nginx() {
     log_info "Testing and reloading nginx..."
 
-    nginx -t 2>/dev/null || {
-        log_warn "nginx test failed, skipping..."
-    }
-
-    pkill -HUP nginx 2>/dev/null || {
-        nginx 2>/dev/null || {
-            log_warn "nginx not running, starting..."
-            nginx
+    if nginx -t 2>/dev/null; then
+        nginx -s reload 2>/dev/null || pkill -HUP nginx 2>/dev/null || nginx 2>/dev/null || {
+            log_warn "Could not reload nginx, you may need to restart manually"
         }
-    }
+    else
+        log_warn "nginx config test failed"
+    fi
 
-    log_info "nginx reloaded"
+    log_info "nginx done"
 }
 
 setup_cron_renewal() {
