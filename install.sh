@@ -31,7 +31,7 @@ Options:
     --domains    Domain and document root pairs (required)
                  Format: domain1:/path/to/docroot,domain2:/path/to/docroot
     --download   Enable download server mode (large files, directory listing)
-                 Optional: --download[=size] (default: 10G)
+                 Optional: --download[=size] (default: 100G)
     --gzip       Enable gzip compression (default: on for download mode)
 
 Examples:
@@ -272,7 +272,7 @@ main() {
 
     DOMAINS_PARAM=""
     DOWNLOAD_MODE=""
-    DOWNLOAD_SIZE="10G"
+    DOWNLOAD_SIZE="100G"
     GZIP_ENABLED=""
 
     while [[ $# -gt 0 ]]; do
