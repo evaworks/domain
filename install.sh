@@ -156,28 +156,13 @@ generate_nginx_config() {
     sed -i "s|{{PRIMARY_DOMAIN}}|$PRIMARY_DOMAIN|g" "$config_file"
 
     local server_blocks=""
-    local download_config=""
-
-    if [[ "$DOWNLOAD_MODE" == "on" ]]; then
-        download_config="
-    # Download server mode
-    client_max_body_size $DOWNLOAD_SIZE;
-    autoindex on;
-    autoindex_exact_size on;
-    autoindex_localtime on;
-
-    # Disable caching for downloads
-    add_header Cache-Control \"no-store, no-cache, must-revalidate\";
-"
-    fi
 
     for i in "${!DOMAINS[@]}"; do
         domain="${DOMAINS[$i]}"
         doc_root="${DOC_ROOTS[$i]}"
 
         if [[ "$DOWNLOAD_MODE" == "on" ]]; then
-            server_blocks+=$(cat <<SERVERBLOCK
-
+            server_blocks="${server_blocks}
     server {
         listen 80;
         listen [::]:80;
@@ -185,16 +170,19 @@ generate_nginx_config() {
 
         root $doc_root;
         index index.html index.htm;
-$download_config
+
+        client_max_body_size $DOWNLOAD_SIZE;
+        autoindex on;
+        autoindex_exact_size on;
+        autoindex_localtime on;
+        add_header Cache-Control \"no-store, no-cache, must-revalidate\";
+
         location / {
             try_files \$uri \$uri/ =404;
         }
-    }
-SERVER_BLOCK
-)
+    }"
         else
-            server_blocks+=$(cat <<SERVERBLOCK
-
+            server_blocks="${server_blocks}
     server {
         listen 80;
         listen [::]:80;
@@ -206,9 +194,7 @@ SERVER_BLOCK
         location / {
             try_files \$uri \$uri/ =404;
         }
-    }
-SERVER_BLOCK
-)
+    }"
         fi
     done
 
