@@ -79,18 +79,20 @@ parse_domains() {
 install_requirements() {
     log_info "Checking requirements..."
 
-    if ! command -v nginx &> /dev/null; then
+    if ! which nginx >/dev/null 2>&1 && ! command -v nginx >/dev/null 2>&1; then
         log_info "Installing nginx..."
-        apt update && apt install -y nginx
+        apt update
+        apt install -y nginx
     else
-        log_info "nginx already installed"
+        log_info "nginx already installed, skipping"
     fi
 
-    if ! command -v certbot &> /dev/null; then
+    if ! which certbot >/dev/null 2>&1 && ! command -v certbot >/dev/null 2>&1; then
         log_info "Installing certbot..."
-        apt update && apt install -y certbot python3-certbot-nginx
+        apt update
+        apt install -y certbot python3-certbot-nginx
     else
-        log_info "certbot already installed"
+        log_info "certbot already installed, skipping"
     fi
 }
 
