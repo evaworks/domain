@@ -25,16 +25,21 @@ log_error() {
 
 show_usage() {
     cat << EOF
-Usage: $0 --domains <domain:doc-root[,domain:doc-root]>
+Usage: $0 --domains <domain:doc-root[,domain:doc-root>] [options]
 
 Options:
     --domains    Domain and document root pairs (required)
                  Format: domain1:/path/to/docroot,domain2:/path/to/docroot
+    --download   Enable download server mode (large files, directory listing)
+                 Optional: --download[=size] (default: 10G)
+    --gzip       Enable gzip compression (default: on for download mode)
 
 Examples:
     $0 --domains "example.com:/var/www/html"
     $0 --domains "example.com:/var/www/html,sub.example.com:/var/www/sub"
-    $0 --domains "example.com:/var/www/html,sub.example.com:/var/www/sub,api.example.com:/var/www/api"
+    $0 --domains "example.com:/var/www/download" --download
+    $0 --domains "example.com:/var/www/download" --download=50G
+    $0 --domains "example.com:/var/www/download" --download --gzip
 EOF
     exit 1
 }
@@ -151,11 +156,44 @@ generate_nginx_config() {
     sed -i "s|{{PRIMARY_DOMAIN}}|$PRIMARY_DOMAIN|g" "$config_file"
 
     local server_blocks=""
+    local download_config=""
+
+    if [[ "$DOWNLOAD_MODE" == "on" ]]; then
+        download_config="
+    # Download server mode
+    client_max_body_size $DOWNLOAD_SIZE;
+    autoindex on;
+    autoindex_exact_size on;
+    autoindex_localtime on;
+
+    # Disable caching for downloads
+    add_header Cache-Control \"no-store, no-cache, must-revalidate\";
+"
+    fi
+
     for i in "${!DOMAINS[@]}"; do
         domain="${DOMAINS[$i]}"
         doc_root="${DOC_ROOTS[$i]}"
 
-        server_blocks+=$(cat <<SERVERBLOCK
+        if [[ "$DOWNLOAD_MODE" == "on" ]]; then
+            server_blocks+=$(cat <<SERVERBLOCK
+
+    server {
+        listen 80;
+        listen [::]:80;
+        server_name $domain;
+
+        root $doc_root;
+        index index.html index.htm;
+$download_config
+        location / {
+            try_files \$uri \$uri/ =404;
+        }
+    }
+SERVER_BLOCK
+)
+        else
+            server_blocks+=$(cat <<SERVERBLOCK
 
     server {
         listen 80;
@@ -171,6 +209,7 @@ generate_nginx_config() {
     }
 SERVER_BLOCK
 )
+        fi
     done
 
     sed -i "s|{{SERVER_BLOCKS}}|$server_blocks|g" "$config_file"
@@ -183,6 +222,19 @@ SERVER_BLOCK
         domains_nginx+="$domain"
     done
     sed -i "s|{{DOMAINS}}|$domains_nginx|g" "$config_file"
+
+    if [[ -n "$GZIP_ENABLED" ]]; then
+        if [[ "$GZIP_ENABLED" == "on" ]]; then
+            sed -i 's|{{GZIP_CONFIG}}|    gzip on;\n    gzip_types *;|g' "$config_file"
+            sed -i 's|{{GZIP_DISABLED}}|# gzip disabled|g' "$config_file"
+        else
+            sed -i 's|{{GZIP_CONFIG}}|# gzip disabled|g' "$config_file"
+            sed -i 's|{{GZIP_DISABLED}}|# gzip disabled|g' "$config_file"
+        fi
+    else
+        sed -i 's|{{GZIP_CONFIG}}|    gzip on;\n    gzip_types *;|g' "$config_file"
+        sed -i 's|{{GZIP_DISABLED}}|# gzip disabled|g' "$config_file"
+    fi
 
     if [[ ! -L "$config_link" ]]; then
         ln -sf "$config_file" "$config_link"
@@ -219,13 +271,32 @@ main() {
     fi
 
     DOMAINS_PARAM=""
-    DOMAINS_RAW=""
+    DOWNLOAD_MODE=""
+    DOWNLOAD_SIZE="10G"
+    GZIP_ENABLED=""
 
     while [[ $# -gt 0 ]]; do
         case $1 in
             --domains)
                 DOMAINS_PARAM="$2"
                 shift 2
+                ;;
+            --download)
+                DOWNLOAD_MODE="on"
+                if [[ -n "$2" && "$2" != --* ]]; then
+                    DOWNLOAD_SIZE="$2"
+                    shift
+                fi
+                ;;
+            --download=*)
+                DOWNLOAD_MODE="on"
+                DOWNLOAD_SIZE="${1#*=}"
+                ;;
+            --gzip)
+                GZIP_ENABLED="on"
+                ;;
+            --nogzip)
+                GZIP_ENABLED="off"
                 ;;
             *)
                 log_error "Unknown option: $1"
@@ -258,6 +329,8 @@ main() {
     log_info "Certificate path: /etc/letsencrypt/live/$PRIMARY_DOMAIN/"
     log_info "Nginx config: /etc/nginx/sites-available/$PRIMARY_DOMAIN.conf"
     log_info "Renewal: automatic (weekly check)"
+    [[ -n "$DOWNLOAD_MODE" ]] && log_info "Download mode: enabled (max $DOWNLOAD_SIZE)"
+    [[ "$GZIP_ENABLED" == "on" ]] && log_info "Gzip: enabled"
 }
 
 main "$@"
